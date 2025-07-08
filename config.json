@@ -1,0 +1,28 @@
+{
+  "keybinds": {
+    "quit": ["q"],
+    "chapter_menu": ["c"],
+    "next_page": ["j", "\u001b[B", " ", "\u001b[6~"],
+    "prev_page": ["k", "\u001b[A", "b", "\u001b[5~"],
+    "next_chapter": ["n"],
+    "prev_chapter": ["p"],
+    "start": ["s"],
+    "end": ["e"],
+    "bookmark_save": ["b"],
+    "bookmark_goto": ["g"],
+    "chapter_menu_down": ["\u001b[B", "j"],
+    "chapter_menu_up": ["\u001b[A", "k"],
+    "chapter_menu_select": ["\r"],
+    "chapter_menu_close": ["q", "c"],
+    "help": ["h"]
+  },
+  "formatting": {
+    "paragraph_spacing": 1,
+    "preserve_line_breaks": true,
+    "paragraph_indent": 0
+  },
+  "bookmarks": {
+    "auto_bookmark_on_exit": true,
+    "auto_load_bookmark_on_open": true
+  }
+}
