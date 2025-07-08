@@ -2,27 +2,61 @@
   "keybinds": {
     "quit": ["q"],
     "chapter_menu": ["c"],
-    "next_page": ["j", "\u001b[B", " ", "\u001b[6~"],
-    "prev_page": ["k", "\u001b[A", "b", "\u001b[5~"],
+    "next_page": ["j"],
+    "prev_page": ["k"],
     "next_chapter": ["n"],
     "prev_chapter": ["p"],
     "start": ["s"],
     "end": ["e"],
     "bookmark_save": ["b"],
     "bookmark_goto": ["g"],
-    "chapter_menu_down": ["\u001b[B", "j"],
-    "chapter_menu_up": ["\u001b[A", "k"],
+    "chapter_menu_down": ["j"],
+    "chapter_menu_up": ["k"],
     "chapter_menu_select": ["\r"],
     "chapter_menu_close": ["q", "c"],
-    "help": ["h"]
+    "help": ["h"],
+    "toggle_double_page": ["d"]
   },
   "formatting": {
     "paragraph_spacing": 1,
     "preserve_line_breaks": true,
     "paragraph_indent": 0
   },
+  "display": {
+    "responsive_padding": true,
+    "breakpoints": {
+      "small": {
+        "max_width": 80,
+        "padding_x": 2,
+        "description": "Small terminals (≤80 cols)",
+        "double_page_mode": false
+      },
+      "medium": {
+        "max_width": 120,
+        "padding_x": 8,
+        "description": "Medium terminals (81-120 cols)",
+        "double_page_mode": false
+      },
+      "large": {
+        "max_width": 180,
+        "padding_x": 20,
+        "description": "Large terminals (121-160 cols)",
+        "double_page_mode": true
+      },
+      "extra_large": {
+        "max_width": 220,
+        "padding_x": 35,
+        "description": "Extra large terminals (>160 cols)",
+        "double_page_mode": true
+      }
+    },
+    "fallback_padding_x": 30
+  },
   "bookmarks": {
     "auto_bookmark_on_exit": true,
     "auto_load_bookmark_on_open": true
+  },
+  "reading": {
+    "double_page_separator": " │ "
   }
 }

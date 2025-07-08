@@ -6,6 +6,7 @@ from rich.panel import Panel
 
 from ..core.config import get_config
 from ..utils.terminal import get_key
+from ..utils.text import sanitize_markup
 from .state import DisplayCalculator
 
 
@@ -35,6 +36,10 @@ def display_help_screen(console: Console) -> None:
         "bookmark_goto": "Go to bookmark",
     }
 
+    display_keys = {
+        "toggle_double_page": "Toggle double page mode",
+    }
+
     menu_keys = {
         "chapter_menu": "Chapter menu",
         "help": "Help",
@@ -49,6 +54,12 @@ def display_help_screen(console: Console) -> None:
 
     help_lines.extend(["", "[bold green]Bookmarks[/bold green]"])
     for action, description in bookmark_keys.items():
+        if action in keybinds:
+            key_list = ", ".join(repr(k).replace("'", "") for k in keybinds[action])
+            help_lines.append(f"  [bold]{description}[/bold]: {key_list}")
+
+    help_lines.extend(["", "[bold cyan]Display[/bold cyan]"])
+    for action, description in display_keys.items():
         if action in keybinds:
             key_list = ", ".join(repr(k).replace("'", "") for k in keybinds[action])
             help_lines.append(f"  [bold]{description}[/bold]: {key_list}")
@@ -72,7 +83,7 @@ def display_help_screen(console: Console) -> None:
             title="Help",
             padding=(
                 DisplayCalculator.PANEL_PADDING_Y,
-                DisplayCalculator.PANEL_PADDING_X,
+                DisplayCalculator.get_panel_padding_x(),
             ),
             width=panel_width + 2 if panel_width > 0 else None,
         )
@@ -125,7 +136,7 @@ def display_chapter_menu(
             title=f"{epub_book.metadata['title']} - by {epub_book.metadata['author']} | Chapter {current_chapter + 1}/{len(epub_book.chapters)}",
             padding=(
                 DisplayCalculator.PANEL_PADDING_Y,
-                DisplayCalculator.PANEL_PADDING_X,
+                DisplayCalculator.get_panel_padding_x(),
             ),
             width=panel_width + 2 if panel_width > 0 else None,
         )
@@ -175,7 +186,10 @@ def display_reading_page(
     chapter_name = chapter["title"] if chapter and "title" in chapter else "Chapter"
     chapter_info = f"{chapter_name} ({current_page + 1}/{total_pages})"
 
-    upper_bar = f"{book_info} | {chapter_info}"
+    # Add reading mode indicator
+    mode_indicator = "📖" if state.effective_double_page_mode(panel_width) else "📄"
+
+    upper_bar = f"{book_info} | {chapter_info} {mode_indicator}"
 
     # Display notification if present in state
     notification = getattr(state, "notification", None)
@@ -187,16 +201,22 @@ def display_reading_page(
         subtitle_align = "center"
 
     console.clear()
+
+    # Sanitize page content to prevent markup errors
+    sanitized_content = []
+    for line in page_content:
+        sanitized_content.append(sanitize_markup(line))
+
     console.print(
         Panel(
-            "\n".join(page_content),
+            "\n".join(sanitized_content),
             title=upper_bar,
             title_align="center",
             subtitle=subtitle,
             subtitle_align=subtitle_align,
             padding=(
                 DisplayCalculator.PANEL_PADDING_Y,
-                DisplayCalculator.PANEL_PADDING_X,
+                DisplayCalculator.get_panel_padding_x(),
             ),
             width=panel_width + 2 if panel_width > 0 else None,
         )

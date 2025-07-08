@@ -65,3 +65,9 @@ The modular structure makes it easy to:
 - Modify UI behavior in the `ui/` package
 - Customize EPUB parsing in `core/reader.py`
 - Add new utilities in the `utils/` package
+
+
+
+# Issues
+
+- [ ] When loading some books some paragraphs are duplicated but with differing format? example: Table of contents and Part 1 text for Red Rising

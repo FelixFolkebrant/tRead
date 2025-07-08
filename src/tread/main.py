@@ -6,7 +6,6 @@ from typing import List, Dict, Optional
 from .core.reader import load_book
 from .core.bookmarks import BookmarkManager
 from .utils.terminal import get_key, CursorManager
-from .ui.controller import display_book
 from .ui.state import DisplayCalculator
 from rich.console import Console
 from rich.panel import Panel
@@ -102,12 +101,15 @@ def display_book_selection_table(books: List[Dict[str, any]], selected: int) -> 
     panel_width, _, visible_height, _ = DisplayCalculator.get_display_dimensions()
 
     # Calculate display window
-    available_lines = (
-        visible_height - 12
-    )  # Reserve space for ascii art, title, instructions
-    half_screen = available_lines // 2
+    # Each book takes 3 lines (title, author, empty line)
+    # Reserve space for ASCII art (6 lines), "Your Library" (2 lines), instructions (2 lines), scroll indicators (2 lines)
+    header_lines = 12
+    available_lines = visible_height - header_lines
+    books_per_screen = available_lines // 3  # Each book takes 3 lines
+
+    half_screen = books_per_screen // 2
     scroll_offset = max(0, selected - half_screen)
-    scroll_offset = min(scroll_offset, max(0, len(books) - available_lines))
+    scroll_offset = min(scroll_offset, max(0, len(books) - books_per_screen))
 
     # ASCII art header
     ascii_art = [
@@ -125,7 +127,7 @@ def display_book_selection_table(books: List[Dict[str, any]], selected: int) -> 
     book_lines.extend(["Your Library", ""])
 
     start_idx = scroll_offset
-    end_idx = min(start_idx + available_lines, len(books))
+    end_idx = min(start_idx + books_per_screen, len(books))
 
     for i in range(start_idx, end_idx):
         book = books[i]
@@ -157,9 +159,6 @@ def display_book_selection_table(books: List[Dict[str, any]], selected: int) -> 
         book_lines.append("    [dim]... (more books below)[/dim]")
 
     book_lines.append("")
-    book_lines.append(
-        "[bold]Navigation:[/bold] ↑↓ to select • Enter to open • q to quit"
-    )
 
     # Pad to fill screen
     while len(book_lines) < visible_height:
@@ -172,7 +171,7 @@ def display_book_selection_table(books: List[Dict[str, any]], selected: int) -> 
             title="",
             padding=(
                 DisplayCalculator.PANEL_PADDING_Y,
-                DisplayCalculator.PANEL_PADDING_X,
+                DisplayCalculator.get_panel_padding_x(),
             ),
             width=panel_width + 2 if panel_width > 0 else None,
         )
@@ -235,7 +234,7 @@ def pick_book() -> Optional[str]:
                 " ║ ╠╦╝║╣ ╠═╣ ║║",
                 " ╩ ╩╚═╚═╝╩ ╩═╩╝",
                 "",
-                "[dim]Terminal EPUB Reader[/dim]",
+                "[dim]Terminal EPUB Reader - press h to see available commands[/dim]",
                 "",
             ]
 
@@ -258,7 +257,7 @@ def pick_book() -> Optional[str]:
                     subtitle_align="center",
                     padding=(
                         DisplayCalculator.PANEL_PADDING_Y,
-                        DisplayCalculator.PANEL_PADDING_X,
+                        DisplayCalculator.get_panel_padding_x(),
                     ),
                     width=panel_width + 2 if panel_width > 0 else None,
                 )
@@ -292,7 +291,9 @@ def main() -> None:
     except KeyboardInterrupt:
         console.print("\n[yellow]Goodbye![/yellow]")
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        # Escape any Rich markup in the error message to prevent markup errors
+        error_msg = str(e).replace("[", "\\[").replace("]", "\\]")
+        console.print(f"[red]Error: {error_msg}[/red]")
 
 
 if __name__ == "__main__":

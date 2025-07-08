@@ -54,6 +54,32 @@ class Config:
                 "auto_bookmark_on_exit": True,
                 "auto_load_bookmark_on_open": True,
             },
+            "display": {
+                "responsive_padding": True,
+                "breakpoints": {
+                    "small": {
+                        "max_width": 80,
+                        "padding_x": 2,
+                        "description": "Small terminals (≤80 cols)",
+                    },
+                    "medium": {
+                        "max_width": 120,
+                        "padding_x": 8,
+                        "description": "Medium terminals (81-120 cols)",
+                    },
+                    "large": {
+                        "max_width": 160,
+                        "padding_x": 20,
+                        "description": "Large terminals (121-160 cols)",
+                    },
+                    "extra_large": {
+                        "max_width": 9999,
+                        "padding_x": 35,
+                        "description": "Extra large terminals (>160 cols)",
+                    },
+                },
+                "fallback_padding_x": 30,
+            },
         }
 
     @property
@@ -67,6 +93,14 @@ class Config:
     @property
     def bookmarks(self) -> Dict[str, Any]:
         return self._config_data.get("bookmarks", {})
+
+    @property
+    def display(self) -> Dict[str, Any]:
+        return self._config_data.get("display", {})
+
+    @property
+    def reading(self) -> Dict[str, Any]:
+        return self._config_data.get("reading", {})
 
 
 # Global configuration instance

@@ -4,8 +4,13 @@ from typing import Dict, Tuple, List
 from datetime import datetime
 
 from ..utils.terminal import get_terminal_size
-from ..utils.text import wrap_text_to_width, create_pages
+from ..utils.text import (
+    wrap_text_to_width,
+    create_pages,
+    create_double_pages_with_width,
+)
 from ..core.bookmarks import BookmarkManager, Bookmark
+from ..core.config import get_config
 
 
 class ReadingState:
@@ -19,6 +24,7 @@ class ReadingState:
         self.show_help = False
         self.bookmark_manager = BookmarkManager()
         self.notification = None  # For UI notifications (e.g., bookmark saved)
+        self.double_page_mode = get_config().reading.get("double_page_mode", False)
 
     def is_valid_chapter(self, chapter_index: int) -> bool:
         return 0 <= chapter_index < len(self.epub_book.chapters)
@@ -52,10 +58,24 @@ class ReadingState:
         self.current_page = 0
 
     def goto_end(self, text_width: int, visible_height: int) -> None:
+        from ..utils.terminal import get_terminal_size
+
+        terminal_width, _ = get_terminal_size()
         self.current_chapter = len(self.epub_book.chapters) - 1
         chapter = self.get_current_chapter()
-        lines = wrap_text_to_width(chapter["content"], text_width)
+        double_page = self.effective_double_page_mode(terminal_width)
+        if double_page:
+            config = get_config()
+            separator = config.reading.get("double_page_separator", " │ ")
+            single_page_width = (text_width - len(separator)) // 2 - 2
+            lines = wrap_text_to_width(chapter["content"], max(20, single_page_width))
+        else:
+            lines = wrap_text_to_width(chapter["content"], text_width)
         pages = create_pages(lines, visible_height)
+        if double_page:
+            config = get_config()
+            separator = config.reading.get("double_page_separator", " │ ")
+            pages = create_double_pages_with_width(pages, text_width, separator)
         self.current_page = len(pages) - 1 if pages else 0
 
     def save_bookmark(self) -> bool:
@@ -131,20 +151,84 @@ class ReadingState:
         except Exception:
             return "Error reading bookmark"
 
+    def get_double_page_mode(self, terminal_width: int = None) -> bool:
+        """Determine double page mode based on current breakpoint in config, using terminal width."""
+        config = get_config()
+        display = config.display
+        breakpoints = display.get("breakpoints", {})
+        if terminal_width is None:
+            # Get current terminal width
+            terminal_width, _ = get_terminal_size()
+        # Find the matching breakpoint
+        for bp in breakpoints.values():
+            if terminal_width <= bp.get("max_width", 9999):
+                return bp.get("double_page_mode", False)
+        # Fallback
+        return False
+
+    def toggle_double_page_mode(self, terminal_width: int = None) -> None:
+        """Toggle double page mode for the current breakpoint (overrides config for session)."""
+        if not hasattr(self, "_double_page_override"):
+            self._double_page_override = None
+        current = self.get_double_page_mode(terminal_width)
+        self._double_page_override = (
+            not current
+            if self._double_page_override is None
+            else not self._double_page_override
+        )
+        mode_text = "double page" if self._double_page_override else "single page"
+        self.notification = f"[blue]Switched to {mode_text} mode[/blue]"
+
+    def effective_double_page_mode(self, terminal_width: int = None) -> bool:
+        if (
+            hasattr(self, "_double_page_override")
+            and self._double_page_override is not None
+        ):
+            return self._double_page_override
+        return self.get_double_page_mode(terminal_width)
+
 
 class DisplayCalculator:
     # Configuration constants
     PANEL_BORDER = 4
     PANEL_PADDING_Y = 1
-    PANEL_PADDING_X = 30
     PANEL_EXTRA_HEIGHT = 3
     PANEL_HEIGHT_OFFSET = 0
 
     @classmethod
+    def _get_responsive_padding_x(cls, terminal_width: int) -> int:
+        """Calculate responsive horizontal padding based on terminal width."""
+        config = get_config()
+        display_config = config.display
+
+        # Check if responsive padding is enabled
+        if not display_config.get("responsive_padding", True):
+            return display_config.get("fallback_padding_x", 30)
+
+        breakpoints = display_config.get("breakpoints", {})
+
+        # Sort breakpoints by max_width to find the right one
+        sorted_breakpoints = sorted(
+            breakpoints.items(), key=lambda x: x[1].get("max_width", 0)
+        )
+
+        # Find the first breakpoint that accommodates our terminal width
+        for name, breakpoint in sorted_breakpoints:
+            if terminal_width <= breakpoint.get("max_width", 9999):
+                return breakpoint.get("padding_x", 30)
+
+        # Fallback if no breakpoint matches
+        return display_config.get("fallback_padding_x", 30)
+
+    @classmethod
     def get_display_dimensions(cls) -> Tuple[int, int, int, int]:
         width, height = get_terminal_size()
+
+        # Use responsive padding
+        padding_x = cls._get_responsive_padding_x(width)
+
         panel_width = width - cls.PANEL_BORDER
-        text_width = panel_width - (cls.PANEL_PADDING_X * 2)
+        text_width = panel_width - (padding_x * 2)
         visible_height = (
             height
             - cls.PANEL_EXTRA_HEIGHT
@@ -152,6 +236,12 @@ class DisplayCalculator:
             - cls.PANEL_PADDING_Y * 2
         )
         return panel_width, text_width, visible_height, height
+
+    @classmethod
+    def get_panel_padding_x(cls) -> int:
+        """Get the current responsive horizontal padding value."""
+        width, _ = get_terminal_size()
+        return cls._get_responsive_padding_x(width)
 
 
 class PageManager:
@@ -161,19 +251,24 @@ class PageManager:
     def get_current_pages(
         self, text_width: int, visible_height: int
     ) -> Tuple[List[List[str]], Dict[str, int]]:
-        """Get current pages and progress information.
-        Args:
-            text_width: Width for text wrapping.
-            visible_height: Height for pagination.
-        """
+        from ..utils.terminal import get_terminal_size
+
+        terminal_width, _ = get_terminal_size()
         chapter = self.state.get_current_chapter()
-        lines = wrap_text_to_width(chapter["content"], text_width)
+        double_page = self.state.effective_double_page_mode(terminal_width)
+        if double_page:
+            config = get_config()
+            separator = config.reading.get("double_page_separator", " │ ")
+            single_page_width = (text_width - len(separator)) // 2 - 2
+            lines = wrap_text_to_width(chapter["content"], max(20, single_page_width))
+        else:
+            lines = wrap_text_to_width(chapter["content"], text_width)
         pages = create_pages(lines, visible_height)
-
-        # Ensure current page is within bounds
+        if double_page:
+            config = get_config()
+            separator = config.reading.get("double_page_separator", " │ ")
+            pages = create_double_pages_with_width(pages, text_width, separator)
         self.state.current_page = max(0, min(self.state.current_page, len(pages) - 1))
-
-        # Calculate progress
         chapter_progress = (
             int((self.state.current_page / len(pages) * 100)) if pages else 0
         )
@@ -185,13 +280,11 @@ class PageManager:
             )
             * 100
         )
-
         progress_info = {
             "chapter_progress": chapter_progress,
             "overall_progress": overall_progress,
             "total_chapters": total_chapters,
         }
-
         return pages, progress_info
 
     def next_page(self, pages: List[List[str]]) -> bool:
@@ -207,15 +300,32 @@ class PageManager:
     def prev_page(
         self, pages: List[List[str]], text_width: int, visible_height: int
     ) -> bool:
+        from ..utils.terminal import get_terminal_size
+
+        terminal_width, _ = get_terminal_size()
         if self.state.current_page > 0:
             self.state.current_page -= 1
             return True
         elif self.state.current_chapter > 0:
-            # Move to last page of previous chapter
             self.state.current_chapter -= 1
             prev_chapter = self.state.get_current_chapter()
-            prev_lines = wrap_text_to_width(prev_chapter["content"], text_width)
+            double_page = self.state.effective_double_page_mode(terminal_width)
+            if double_page:
+                config = get_config()
+                separator = config.reading.get("double_page_separator", " │ ")
+                single_page_width = (text_width - len(separator)) // 2 - 2
+                prev_lines = wrap_text_to_width(
+                    prev_chapter["content"], max(20, single_page_width)
+                )
+            else:
+                prev_lines = wrap_text_to_width(prev_chapter["content"], text_width)
             prev_pages = create_pages(prev_lines, visible_height)
+            if double_page:
+                config = get_config()
+                separator = config.reading.get("double_page_separator", " │ ")
+                prev_pages = create_double_pages_with_width(
+                    prev_pages, text_width, separator
+                )
             self.state.current_page = len(prev_pages) - 1 if prev_pages else 0
             return True
         return False

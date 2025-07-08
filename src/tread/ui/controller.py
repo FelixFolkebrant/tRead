@@ -142,6 +142,8 @@ class UIController:
             self.state.goto_start()
         elif key in self.keybinds["end"]:
             self.state.goto_end(text_width, visible_height)
+        elif key in self.keybinds.get("toggle_double_page", []):
+            self.state.toggle_double_page_mode()
 
         return True
 
