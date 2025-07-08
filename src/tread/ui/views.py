@@ -46,25 +46,25 @@ def display_help_screen(console: Console) -> None:
         "quit": "Quit",
     }
 
-    help_lines.extend(["[bold yellow]Navigation[/bold yellow]"])
+    help_lines.extend(["[bold]Navigation[/bold]"])
     for action, description in navigation_keys.items():
         if action in keybinds:
             key_list = ", ".join(repr(k).replace("'", "") for k in keybinds[action])
             help_lines.append(f"  [bold]{description}[/bold]: {key_list}")
 
-    help_lines.extend(["", "[bold green]Bookmarks[/bold green]"])
+    help_lines.extend(["", "[bold]Bookmarks[/bold]"])
     for action, description in bookmark_keys.items():
         if action in keybinds:
             key_list = ", ".join(repr(k).replace("'", "") for k in keybinds[action])
             help_lines.append(f"  [bold]{description}[/bold]: {key_list}")
 
-    help_lines.extend(["", "[bold cyan]Display[/bold cyan]"])
+    help_lines.extend(["", "[bold]Display[/bold]"])
     for action, description in display_keys.items():
         if action in keybinds:
             key_list = ", ".join(repr(k).replace("'", "") for k in keybinds[action])
             help_lines.append(f"  [bold]{description}[/bold]: {key_list}")
 
-    help_lines.extend(["", "[bold blue]Menu/System[/bold blue]"])
+    help_lines.extend(["", "[bold]Menu/System[/bold]"])
     for action, description in menu_keys.items():
         if action in keybinds:
             key_list = ", ".join(repr(k).replace("'", "") for k in keybinds[action])
@@ -77,17 +77,44 @@ def display_help_screen(console: Console) -> None:
         help_lines.append("")
 
     console.clear()
-    console.print(
-        Panel(
-            "\n".join(help_lines),
-            title="Help",
-            padding=(
-                DisplayCalculator.PANEL_PADDING_Y,
-                DisplayCalculator.get_panel_padding_x(),
-            ),
-            width=panel_width + 2 if panel_width > 0 else None,
+
+    # Check if borders should be shown
+    config = get_config()
+    show_border = config.display.get("show_border", True)
+
+    if show_border:
+        console.print(
+            Panel(
+                "\n".join(help_lines),
+                title="Help",
+                padding=(
+                    DisplayCalculator.PANEL_PADDING_Y,
+                    DisplayCalculator.get_panel_padding_x(),
+                ),
+                width=panel_width + 2 if panel_width > 0 else None,
+            )
         )
-    )
+    else:
+        # Display without border
+        padding_x = DisplayCalculator.get_panel_padding_x()
+        padding_spaces = " " * padding_x
+
+    # Display title - center it manually
+    title_text = "[bold]Help[/bold]"
+    title_plain = "Help"
+    title_width = len(title_plain)
+    available_width = panel_width - (2 * padding_x)
+    title_padding = (available_width - title_width) // 2
+    title_spaces = " " * (padding_x + title_padding)
+    console.print(f"{title_spaces}{title_text}")
+    console.print()
+
+    # Display content with padding
+    for line in help_lines:
+        if line.strip():  # Don't pad empty lines
+            console.print(f"{padding_spaces}{line}")
+        else:
+            console.print()
     get_key()  # Wait for any key
 
 
@@ -130,17 +157,45 @@ def display_chapter_menu(
         chapter_lines.append("")
 
     console.clear()
-    console.print(
-        Panel(
-            "\n".join(chapter_lines),
-            title=f"{epub_book.metadata['title']} - by {epub_book.metadata['author']} | Chapter {current_chapter + 1}/{len(epub_book.chapters)}",
-            padding=(
-                DisplayCalculator.PANEL_PADDING_Y,
-                DisplayCalculator.get_panel_padding_x(),
-            ),
-            width=panel_width + 2 if panel_width > 0 else None,
+
+    # Check if borders should be shown
+    config = get_config()
+    show_border = config.display.get("show_border", True)
+
+    if show_border:
+        console.print(
+            Panel(
+                "\n".join(chapter_lines),
+                title=f"{epub_book.metadata['title']} - by {epub_book.metadata['author']} | Chapter {current_chapter + 1}/{len(epub_book.chapters)}",
+                padding=(
+                    DisplayCalculator.PANEL_PADDING_Y,
+                    DisplayCalculator.get_panel_padding_x(),
+                ),
+                width=panel_width + 2 if panel_width > 0 else None,
+            )
         )
-    )
+    else:
+        # Display without border
+        padding_x = DisplayCalculator.get_panel_padding_x()
+        padding_spaces = " " * padding_x
+
+        # Display title - center it manually
+        title = f"{epub_book.metadata['title']} - by {epub_book.metadata['author']} | Chapter {current_chapter + 1}/{len(epub_book.chapters)}"
+        # Strip markup for width calculation
+        title_plain = title.replace("[bold]", "").replace("[/bold]", "")
+        title_width = len(title_plain)
+        available_width = panel_width - (2 * padding_x)
+        title_padding = max(0, (available_width - title_width) // 2)
+        title_spaces = " " * (padding_x + title_padding)
+        console.print(f"{title_spaces}[bold]{title}[/bold]")
+        console.print()
+
+        # Display content with padding
+        for line in chapter_lines:
+            if line.strip():  # Don't pad empty lines
+                console.print(f"{padding_spaces}{line}")
+            else:
+                console.print()
 
     key = get_key().lower()
 
@@ -187,9 +242,9 @@ def display_reading_page(
     chapter_info = f"{chapter_name} ({current_page + 1}/{total_pages})"
 
     # Add reading mode indicator
-    mode_indicator = "📖" if state.effective_double_page_mode(panel_width) else "📄"
+    # mode_indicator removed (no color/emoji)
 
-    upper_bar = f"{book_info} | {chapter_info} {mode_indicator}"
+    upper_bar = f"{book_info} | {chapter_info}"
 
     # Display notification if present in state
     notification = getattr(state, "notification", None)
@@ -207,20 +262,53 @@ def display_reading_page(
     for line in page_content:
         sanitized_content.append(sanitize_markup(line))
 
-    console.print(
-        Panel(
-            "\n".join(sanitized_content),
-            title=upper_bar,
-            title_align="center",
-            subtitle=subtitle,
-            subtitle_align=subtitle_align,
-            padding=(
-                DisplayCalculator.PANEL_PADDING_Y,
-                DisplayCalculator.get_panel_padding_x(),
-            ),
-            width=panel_width + 2 if panel_width > 0 else None,
+    # Check if borders should be shown
+    config = get_config()
+    show_border = config.display.get("show_border", True)
+
+    if show_border:
+        console.print(
+            Panel(
+                "\n".join(sanitized_content),
+                title=upper_bar,
+                title_align="center",
+                subtitle=subtitle,
+                subtitle_align=subtitle_align,
+                padding=(
+                    DisplayCalculator.PANEL_PADDING_Y,
+                    DisplayCalculator.get_panel_padding_x(),
+                ),
+                width=panel_width + 2 if panel_width > 0 else None,
+            )
         )
-    )
+    else:
+        # Display without border - center content manually
+        padding_x = DisplayCalculator.get_panel_padding_x()
+        padding_spaces = " " * padding_x
+
+        # Display title - center it manually
+        if upper_bar:
+            upper_bar_plain = upper_bar
+            title_width = len(upper_bar_plain)
+            available_width = panel_width - (2 * padding_x)
+            title_padding = max(0, (available_width - title_width) // 2)
+            title_spaces = " " * (padding_x + title_padding)
+            console.print(f"{title_spaces}[bold]{upper_bar}[/bold]")
+            console.print()
+
+        # Display content with padding
+        for line in sanitized_content:
+            console.print(f"{padding_spaces}{line}")
+
+        # Display subtitle/notification - center it manually
+        if notification:
+            console.print()
+            notification_plain = notification
+            notif_width = len(notification_plain)
+            available_width = panel_width - (2 * padding_x)
+            notif_padding = max(0, (available_width - notif_width) // 2)
+            notif_spaces = " " * (padding_x + notif_padding)
+            console.print(f"{notif_spaces}{notification}")
 
     # Clear notification after displaying it once
     if notification:

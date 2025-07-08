@@ -23,6 +23,7 @@
     "paragraph_indent": 0
   },
   "display": {
+    "show_border": false,
     "responsive_padding": true,
     "breakpoints": {
       "small": {

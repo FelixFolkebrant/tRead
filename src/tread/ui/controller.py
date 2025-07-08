@@ -17,7 +17,7 @@ class UIController:
         Args:
             epub_book: EpubBook instance to display.
         """
-        self.console = Console()
+        self.console = Console(highlight=False)
         self.state = ReadingState(epub_book)
         self.page_manager = PageManager(self.state)
         self.keybinds = get_config().keybinds

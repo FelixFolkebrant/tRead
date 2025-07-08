@@ -5,13 +5,14 @@ from typing import List, Dict, Optional
 
 from .core.reader import load_book
 from .core.bookmarks import BookmarkManager
+from .core.config import get_config
 from .utils.terminal import get_key, CursorManager
 from .ui.state import DisplayCalculator
 from rich.console import Console
 from rich.panel import Panel
 
 BOOKS_DIR = "books"
-console = Console()
+console = Console(highlight=False)
 
 
 def list_epub_files() -> List[str]:
@@ -165,17 +166,34 @@ def display_book_selection_table(books: List[Dict[str, any]], selected: int) -> 
         book_lines.append("")
 
     console.clear()
-    console.print(
-        Panel(
-            "\n".join(book_lines),
-            title="",
-            padding=(
-                DisplayCalculator.PANEL_PADDING_Y,
-                DisplayCalculator.get_panel_padding_x(),
-            ),
-            width=panel_width + 2 if panel_width > 0 else None,
+
+    # Check if borders should be shown
+    config = get_config()
+    show_border = config.display.get("show_border", True)
+
+    if show_border:
+        console.print(
+            Panel(
+                "\n".join(book_lines),
+                title="",
+                padding=(
+                    DisplayCalculator.PANEL_PADDING_Y,
+                    DisplayCalculator.get_panel_padding_x(),
+                ),
+                width=panel_width + 2 if panel_width > 0 else None,
+            )
         )
-    )
+    else:
+        # Display without border
+        padding_x = DisplayCalculator.get_panel_padding_x()
+        padding_spaces = " " * padding_x
+
+        # Display content with padding
+        for line in book_lines:
+            if line.strip():  # Don't pad empty lines
+                console.print(f"{padding_spaces}{line}")
+            else:
+                console.print()
 
 
 def handle_book_selection_input(
@@ -240,28 +258,53 @@ def pick_book() -> Optional[str]:
 
             quit_lines = []
             quit_lines.extend(ascii_art)
-            quit_lines.extend(
-                ["", "[bold yellow]Really quit tRead? (Y/n)[/bold yellow]", ""]
-            )
+            quit_lines.extend(["", "[bold]Really quit tRead? (Y/n)[/bold]", ""])
 
             # Pad to fill screen
             while len(quit_lines) < visible_height:
                 quit_lines.append("")
 
             console.clear()
-            console.print(
-                Panel(
-                    "\n".join(quit_lines),
-                    title="",
-                    subtitle="[yellow]Really quit tRead? (Y/n)[/yellow]",
-                    subtitle_align="center",
-                    padding=(
-                        DisplayCalculator.PANEL_PADDING_Y,
-                        DisplayCalculator.get_panel_padding_x(),
-                    ),
-                    width=panel_width + 2 if panel_width > 0 else None,
+
+            # Check if borders should be shown
+            config = get_config()
+            show_border = config.display.get("show_border", True)
+
+            if show_border:
+                console.print(
+                    Panel(
+                        "\n".join(quit_lines),
+                        title="",
+                        subtitle="[bold]Really quit tRead? (Y/n)[/bold]",
+                        subtitle_align="center",
+                        padding=(
+                            DisplayCalculator.PANEL_PADDING_Y,
+                            DisplayCalculator.get_panel_padding_x(),
+                        ),
+                        width=panel_width + 2 if panel_width > 0 else None,
+                    )
                 )
-            )
+            else:
+                # Display without border - center content manually
+                padding_x = DisplayCalculator.get_panel_padding_x()
+                padding_spaces = " " * padding_x
+
+                # Display content with padding
+                for line in quit_lines:
+                    if line.strip():  # Don't pad empty lines
+                        console.print(f"{padding_spaces}{line}")
+                    else:
+                        console.print()
+
+                # Display subtitle/notification - center it manually
+                console.print()
+                subtitle_text = "[bold]Really quit tRead? (Y/n)[/bold]"
+                subtitle_plain = "Really quit tRead? (Y/n)"
+                subtitle_width = len(subtitle_plain)
+                available_width = panel_width - (2 * padding_x)
+                subtitle_padding = max(0, (available_width - subtitle_width) // 2)
+                subtitle_spaces = " " * (padding_x + subtitle_padding)
+                console.print(f"{subtitle_spaces}{subtitle_text}")
 
             confirm = get_key().lower()
             if confirm in ["n", "no"]:
