@@ -53,6 +53,8 @@ Put EPUB files in the `books/` folder to add them to your collection.
 
 The default keybindings are vim-like with `j` and `k` being used as down and up to navigate. After selecting a book with `Enter`, you can see all available keybinds by pressing `h`.
 
+If you want to change font size, simply scale the terminal (usually `ctrl+shift+(+/-)`)
+
 ### Configuration
 Edit `config.json` to customize:
 - Keybindings for all actions
@@ -71,3 +73,4 @@ The modular structure makes it easy to:
 # Issues
 
 - [ ] When loading some books some paragraphs are duplicated but with differing format? example: Table of contents and Part 1 text for Red Rising
+- [ ] When on really big screens (or really zoomed out), it doesn't really make sense to fill page with new lines until the next chapter. Option to display next chapter with just some new lines should be available.
