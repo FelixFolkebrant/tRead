@@ -56,6 +56,8 @@ class Config:
             },
             "display": {
                 "responsive_padding": True,
+                "show_border": False,
+                "colors": {"background": "", "text": "", "border": ""},
                 "breakpoints": {
                     "small": {
                         "max_width": 80,

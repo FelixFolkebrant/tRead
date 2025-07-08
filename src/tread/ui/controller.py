@@ -4,6 +4,7 @@ from rich.console import Console
 
 from ..core.config import get_config
 from ..utils.terminal import get_key
+from ..utils.colors import StyledConsole
 from .state import ReadingState, DisplayCalculator, PageManager
 from .views import display_help_screen, display_chapter_menu, display_reading_page
 
@@ -17,7 +18,7 @@ class UIController:
         Args:
             epub_book: EpubBook instance to display.
         """
-        self.console = Console(highlight=False)
+        self.console = StyledConsole(Console(highlight=False))
         self.state = ReadingState(epub_book)
         self.page_manager = PageManager(self.state)
         self.keybinds = get_config().keybinds

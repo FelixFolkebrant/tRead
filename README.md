@@ -79,3 +79,5 @@ The modular structure makes it easy to:
 - [ ] When on really big screens (or really zoomed out), it doesn't really make sense to fill page with new lines until the next chapter. Option to display next chapter with just some new lines should be available.
 - [ ] Automatic resize?
 - [ ] Progress bar
+- [ ] Chapter names are not correct, numbers do not represent correct with introduction or other initial chapters
+- [ ] Support for more bookmarks? Not really fitting minimal philosophy though? 

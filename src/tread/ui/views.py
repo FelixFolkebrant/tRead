@@ -1,16 +1,16 @@
 """UI view components for tRead."""
 
 from typing import List, Dict
-from rich.console import Console
 from rich.panel import Panel
 
 from ..core.config import get_config
 from ..utils.terminal import get_key
 from ..utils.text import sanitize_markup
+from ..utils.colors import get_styled_text, get_style, StyledConsole
 from .state import DisplayCalculator
 
 
-def display_help_screen(console: Console) -> None:
+def display_help_screen(console: StyledConsole) -> None:
     """Display the help screen with keybindings.
 
     Args:
@@ -19,7 +19,7 @@ def display_help_screen(console: Console) -> None:
     keybinds = get_config().keybinds
     panel_width, _, visible_height, _ = DisplayCalculator.get_display_dimensions()
 
-    help_lines = ["[bold]Keybinds[/bold]", ""]
+    help_lines = [get_styled_text("Keybinds", "border"), ""]
 
     # Group keybinds by category for better organization
     navigation_keys = {
@@ -46,25 +46,25 @@ def display_help_screen(console: Console) -> None:
         "quit": "Quit",
     }
 
-    help_lines.extend(["[bold]Navigation[/bold]"])
+    help_lines.extend([get_styled_text("Navigation", "border")])
     for action, description in navigation_keys.items():
         if action in keybinds:
             key_list = ", ".join(repr(k).replace("'", "") for k in keybinds[action])
             help_lines.append(f"  [bold]{description}[/bold]: {key_list}")
 
-    help_lines.extend(["", "[bold]Bookmarks[/bold]"])
+    help_lines.extend(["", get_styled_text("Bookmarks", "border")])
     for action, description in bookmark_keys.items():
         if action in keybinds:
             key_list = ", ".join(repr(k).replace("'", "") for k in keybinds[action])
             help_lines.append(f"  [bold]{description}[/bold]: {key_list}")
 
-    help_lines.extend(["", "[bold]Display[/bold]"])
+    help_lines.extend(["", get_styled_text("Display", "border")])
     for action, description in display_keys.items():
         if action in keybinds:
             key_list = ", ".join(repr(k).replace("'", "") for k in keybinds[action])
             help_lines.append(f"  [bold]{description}[/bold]: {key_list}")
 
-    help_lines.extend(["", "[bold]Menu/System[/bold]"])
+    help_lines.extend(["", get_styled_text("Menu/System", "border")])
     for action, description in menu_keys.items():
         if action in keybinds:
             key_list = ", ".join(repr(k).replace("'", "") for k in keybinds[action])
@@ -92,6 +92,7 @@ def display_help_screen(console: Console) -> None:
                     DisplayCalculator.get_panel_padding_x(),
                 ),
                 width=panel_width + 2 if panel_width > 0 else None,
+                border_style=get_style("border"),
             )
         )
     else:
@@ -119,7 +120,7 @@ def display_help_screen(console: Console) -> None:
 
 
 def display_chapter_menu(
-    console: Console, epub_book, current_chapter: int
+    console: StyledConsole, epub_book, current_chapter: int
 ) -> tuple[bool, int]:
     keybinds = get_config().keybinds
     panel_width, _, visible_height, _ = DisplayCalculator.get_display_dimensions()
@@ -217,7 +218,7 @@ def display_chapter_menu(
 
 
 def display_reading_page(
-    console: Console,
+    console: StyledConsole,
     epub_book,
     state,
     page_content: List[str],

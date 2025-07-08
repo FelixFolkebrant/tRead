@@ -7,12 +7,31 @@ from .core.reader import load_book
 from .core.bookmarks import BookmarkManager
 from .core.config import get_config
 from .utils.terminal import get_key, CursorManager
+from .utils.colors import StyledConsole
 from .ui.state import DisplayCalculator
 from rich.console import Console
 from rich.panel import Panel
 
-BOOKS_DIR = "books"
-console = Console(highlight=False)
+
+def get_books_dir() -> str:
+    config = get_config()
+    books_dir = config._config_data.get("books_dir", "books")
+    if not books_dir:
+        books_dir = "books"
+    # Use the directory containing config.json as project root
+    config_path = config.config_path if hasattr(config, 'config_path') else None
+    if config_path:
+        project_root = os.path.dirname(os.path.abspath(config_path))
+    else:
+        project_root = os.getcwd()
+    abs_books_dir = os.path.join(project_root, books_dir) if not os.path.isabs(books_dir) else books_dir
+    return abs_books_dir
+
+
+def get_console() -> StyledConsole:
+    """Get a styled console instance with color configuration applied."""
+    console = Console(highlight=False, color_system="truecolor")
+    return StyledConsole(console)
 
 
 def list_epub_files() -> List[str]:
@@ -21,8 +40,9 @@ def list_epub_files() -> List[str]:
     Returns:
         List of EPUB filenames.
     """
+    books_dir = get_books_dir()
     try:
-        return [f for f in os.listdir(BOOKS_DIR) if f.lower().endswith(".epub")]
+        return [f for f in os.listdir(books_dir) if f.lower().endswith(".epub")]
     except FileNotFoundError:
         return []
 
@@ -57,9 +77,10 @@ def build_book_info_list(epub_files: List[str]) -> List[Dict[str, any]]:
     books = []
     bookmark_manager = BookmarkManager()
 
+    books_dir = get_books_dir()
     for fname in epub_files:
         try:
-            book = load_book(os.path.join(BOOKS_DIR, fname))
+            book = load_book(os.path.join(books_dir, fname))
             has_cover = get_cover_info(book)
 
             # Calculate reading progress
@@ -92,12 +113,15 @@ def build_book_info_list(epub_files: List[str]) -> List[Dict[str, any]]:
     return books
 
 
-def display_book_selection_table(books: List[Dict[str, any]], selected: int) -> None:
+def display_book_selection_table(
+    books: List[Dict[str, any]], selected: int, console: StyledConsole
+) -> None:
     """Display the book selection menu.
 
     Args:
         books: List of book information dictionaries.
         selected: Index of currently selected book.
+        console: Rich Console instance.
     """
     panel_width, _, visible_height, _ = DisplayCalculator.get_display_dimensions()
 
@@ -221,22 +245,26 @@ def handle_book_selection_input(
     return None, selected
 
 
-def pick_book() -> Optional[str]:
+def pick_book(console: StyledConsole) -> Optional[str]:
     """Interactive book selection interface.
+
+    Args:
+        console: Rich Console instance.
 
     Returns:
         Path to selected book file, or None if cancelled.
     """
+    books_dir = get_books_dir()
     epub_files = list_epub_files()
     if not epub_files:
-        console.print("[red]No EPUB files found in the books folder![/red]")
+        console.print(f"[red]No EPUB files found in the books folder: {books_dir}![/red]")
         return None
 
     books = build_book_info_list(epub_files)
     selected = 0
 
     while True:
-        display_book_selection_table(books, selected)
+        display_book_selection_table(books, selected, console)
         key = get_key().lower()
         action, selected = handle_book_selection_input(key, selected, len(books))
 
@@ -312,15 +340,17 @@ def pick_book() -> Optional[str]:
             else:
                 return None
         elif action == "select":
-            return os.path.join(BOOKS_DIR, books[selected]["filename"])
+            return os.path.join(get_books_dir(), books[selected]["filename"])
 
 
 def main() -> None:
     """Main entry point for the application."""
+    console = get_console()
+
     try:
         with CursorManager():
             while True:
-                book_path = pick_book()
+                book_path = pick_book(console)
                 if not book_path:
                     break
                 epub_book = load_book(book_path)

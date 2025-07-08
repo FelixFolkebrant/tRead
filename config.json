@@ -1,4 +1,5 @@
 {
+  "books_dir": "",
   "keybinds": {
     "quit": ["q"],
     "chapter_menu": ["c"],
@@ -23,8 +24,13 @@
     "paragraph_indent": 0
   },
   "display": {
-    "show_border": false,
+    "show_border": true,
     "responsive_padding": true,
+    "colors": {
+      "background": "",
+      "text": "",
+      "border": ""
+    },
     "breakpoints": {
       "small": {
         "max_width": 80,
