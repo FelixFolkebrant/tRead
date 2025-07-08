@@ -18,6 +18,7 @@ class ReadingState:
         self.show_chapter_list = False
         self.show_help = False
         self.bookmark_manager = BookmarkManager()
+        self.notification = None  # For UI notifications (e.g., bookmark saved)
 
     def is_valid_chapter(self, chapter_index: int) -> bool:
         return 0 <= chapter_index < len(self.epub_book.chapters)

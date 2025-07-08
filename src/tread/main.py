@@ -7,8 +7,9 @@ from .core.reader import load_book
 from .core.bookmarks import BookmarkManager
 from .utils.terminal import get_key, CursorManager
 from .ui.controller import display_book
+from .ui.state import DisplayCalculator
 from rich.console import Console
-from rich.table import Table
+from rich.panel import Panel
 
 BOOKS_DIR = "books"
 console = Console()
@@ -60,14 +61,22 @@ def build_book_info_list(epub_files: List[str]) -> List[Dict[str, any]]:
         try:
             book = load_book(os.path.join(BOOKS_DIR, fname))
             has_cover = get_cover_info(book)
-            has_bookmark = bookmark_manager.has_bookmark(book.metadata["title"])
+
+            # Calculate reading progress
+            progress = 0
+            if bookmark_manager.has_bookmark(book.metadata["title"]):
+                bookmark = bookmark_manager.load_bookmark(book.metadata["title"])
+                if bookmark and len(book.chapters) > 0:
+                    # Rough progress calculation based on chapter completion
+                    progress = int((bookmark.chapter / len(book.chapters)) * 100)
+
             books.append(
                 {
                     "filename": fname,
                     "title": book.metadata["title"],
                     "author": book.metadata["author"],
                     "has_cover": has_cover,
-                    "has_bookmark": has_bookmark,
+                    "progress": progress,
                 }
             )
         except Exception as e:
@@ -77,37 +86,96 @@ def build_book_info_list(epub_files: List[str]) -> List[Dict[str, any]]:
                     "title": "[Error reading]",
                     "author": str(e),
                     "has_cover": False,
-                    "has_bookmark": False,
+                    "progress": 0,
                 }
             )
     return books
 
 
 def display_book_selection_table(books: List[Dict[str, any]], selected: int) -> None:
-    """Display the book selection table.
+    """Display the book selection menu.
 
     Args:
         books: List of book information dictionaries.
         selected: Index of currently selected book.
     """
-    table = Table(title="Select a Book", show_lines=True)
-    table.add_column("#", justify="right")
-    table.add_column("Title")
-    table.add_column("Author")
-    table.add_column("Cover")
-    table.add_column("Bookmark")
+    panel_width, _, visible_height, _ = DisplayCalculator.get_display_dimensions()
 
-    for i, book in enumerate(books):
-        marker = ">" if i == selected else " "
-        cover = "Yes" if book["has_cover"] else "No"
-        bookmark = "[green]Yes[/green]" if book["has_bookmark"] else "No"
-        table.add_row(f"{marker} {i+1}", book["title"], book["author"], cover, bookmark)
+    # Calculate display window
+    available_lines = (
+        visible_height - 12
+    )  # Reserve space for ascii art, title, instructions
+    half_screen = available_lines // 2
+    scroll_offset = max(0, selected - half_screen)
+    scroll_offset = min(scroll_offset, max(0, len(books) - available_lines))
+
+    # ASCII art header
+    ascii_art = [
+        "╔╦╗╦═╗╔═╗╔═╗╔╦╗",
+        " ║ ╠╦╝║╣ ╠═╣ ║║",
+        " ╩ ╩╚═╚═╝╩ ╩═╩╝",
+        "",
+        "[dim]Terminal EPUB Reader[/dim]",
+        "",
+    ]
+
+    # Build book list
+    book_lines = []
+    book_lines.extend(ascii_art)
+    book_lines.extend(["Your Library", ""])
+
+    start_idx = scroll_offset
+    end_idx = min(start_idx + available_lines, len(books))
+
+    for i in range(start_idx, end_idx):
+        book = books[i]
+        marker = "►" if i == selected else " "
+
+        # Progress indicator
+        progress = book.get("progress", 0)
+        if progress > 0:
+            progress_bar = f"{progress:3d}%"
+        else:
+            progress_bar = ""
+
+        # Format book entry
+        title = book["title"][:40] + "..." if len(book["title"]) > 40 else book["title"]
+        author = (
+            book["author"][:25] + "..." if len(book["author"]) > 25 else book["author"]
+        )
+
+        book_lines.append(f"{marker} [bold]{title}[/bold]")
+        book_lines.append(f"    [dim]by {author}[/dim] {progress_bar}")
+        book_lines.append("")
+
+    # Add scroll indicators
+    if start_idx > 0:
+        # Find the first book line after ascii art
+        first_book_line = len(ascii_art) + 2
+        book_lines[first_book_line] = "    [dim]... (more books above)[/dim]"
+    if end_idx < len(books):
+        book_lines.append("    [dim]... (more books below)[/dim]")
+
+    book_lines.append("")
+    book_lines.append(
+        "[bold]Navigation:[/bold] ↑↓ to select • Enter to open • q to quit"
+    )
+
+    # Pad to fill screen
+    while len(book_lines) < visible_height:
+        book_lines.append("")
 
     console.clear()
-    console.print(table)
-    console.print("Use ↑/↓ to select, Enter to open, q to quit.")
     console.print(
-        "[dim]Books with bookmarks will automatically load to saved position.[/dim]"
+        Panel(
+            "\n".join(book_lines),
+            title="",
+            padding=(
+                DisplayCalculator.PANEL_PADDING_Y,
+                DisplayCalculator.PANEL_PADDING_X,
+            ),
+            width=panel_width + 2 if panel_width > 0 else None,
+        )
     )
 
 
@@ -156,7 +224,51 @@ def pick_book() -> Optional[str]:
         action, selected = handle_book_selection_input(key, selected, len(books))
 
         if action == "quit":
-            return None
+            # Show quit confirmation in the panel
+            panel_width, _, visible_height, _ = (
+                DisplayCalculator.get_display_dimensions()
+            )
+
+            # Build quit confirmation display
+            ascii_art = [
+                "╔╦╗╦═╗╔═╗╔═╗╔╦╗",
+                " ║ ╠╦╝║╣ ╠═╣ ║║",
+                " ╩ ╩╚═╚═╝╩ ╩═╩╝",
+                "",
+                "[dim]Terminal EPUB Reader[/dim]",
+                "",
+            ]
+
+            quit_lines = []
+            quit_lines.extend(ascii_art)
+            quit_lines.extend(
+                ["", "[bold yellow]Really quit tRead? (Y/n)[/bold yellow]", ""]
+            )
+
+            # Pad to fill screen
+            while len(quit_lines) < visible_height:
+                quit_lines.append("")
+
+            console.clear()
+            console.print(
+                Panel(
+                    "\n".join(quit_lines),
+                    title="",
+                    subtitle="[yellow]Really quit tRead? (Y/n)[/yellow]",
+                    subtitle_align="center",
+                    padding=(
+                        DisplayCalculator.PANEL_PADDING_Y,
+                        DisplayCalculator.PANEL_PADDING_X,
+                    ),
+                    width=panel_width + 2 if panel_width > 0 else None,
+                )
+            )
+
+            confirm = get_key().lower()
+            if confirm in ["n", "no"]:
+                continue
+            else:
+                return None
         elif action == "select":
             return os.path.join(BOOKS_DIR, books[selected]["filename"])
 
@@ -165,10 +277,18 @@ def main() -> None:
     """Main entry point for the application."""
     try:
         with CursorManager():
-            book_path = pick_book()
-            if book_path:
+            while True:
+                book_path = pick_book()
+                if not book_path:
+                    break
                 epub_book = load_book(book_path)
-                display_book(epub_book)
+                from .ui.controller import UIController
+
+                controller = UIController(epub_book)
+                return_to_menu = controller.run()
+                controller.save_auto_bookmark()
+                if not return_to_menu:
+                    break
     except KeyboardInterrupt:
         console.print("\n[yellow]Goodbye![/yellow]")
     except Exception as e:

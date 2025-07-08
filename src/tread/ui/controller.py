@@ -23,15 +23,11 @@ class UIController:
         self.keybinds = get_config().keybinds
         self.config = get_config()
 
-    def run(self) -> None:
-        """Main UI loop."""
+    def run(self) -> bool:
+        """Main UI loop. Returns True if user wants to return to book select, False to exit."""
         # Auto-load bookmark if enabled
         if self.config.bookmarks.get("auto_load_bookmark_on_open", True):
-            if self.state.load_bookmark():
-                self.console.print(
-                    f"[green]Loaded bookmark: {self.state.get_bookmark_info()}[/green]"
-                )
-                self.console.input("Press Enter to continue...")
+            self.state.load_bookmark()
 
         while True:
             if self.state.show_help:
@@ -59,13 +55,15 @@ class UIController:
                 break
 
             if not self._display_current_page():
-                break
+                # User pressed quit
+                return True
+        return False
 
     def save_auto_bookmark(self) -> None:
         """Save current position as auto-bookmark on exit."""
         if self.config.bookmarks.get("auto_bookmark_on_exit", True):
             if self.state.save_bookmark():
-                self.console.print("[green]Auto-saved bookmark[/green]")
+                self.state.notification = "[green]Auto-saved bookmark[/green]"
 
     def _display_current_page(self) -> bool:
         """Display current page and handle input.
@@ -150,23 +148,23 @@ class UIController:
     def _handle_save_bookmark(self) -> None:
         """Handle saving a bookmark."""
         if self.state.save_bookmark():
-            self.console.print("[green]Bookmark saved![/green]")
+            self.state.notification = "Bookmark saved!"
         else:
-            self.console.print("[red]Failed to save bookmark![/red]")
-        self.console.input("Press Enter to continue...")
+            self.state.notification = "[red]Failed to save bookmark![/red]"
 
     def _handle_goto_bookmark(self) -> None:
         """Handle going to a saved bookmark."""
         if self.state.has_bookmark():
             if self.state.load_bookmark():
-                self.console.print(
-                    f"[green]Jumped to bookmark: {self.state.get_bookmark_info()}[/green]"
+                self.state.notification = (
+                    f"Jumped to bookmark: {self.state.get_bookmark_info()}"
                 )
             else:
-                self.console.print("[red]Failed to load bookmark![/red]")
+                self.state.notification = "[red]Failed to load bookmark![/red]"
         else:
-            self.console.print("[yellow]No bookmark found for this book![/yellow]")
-        self.console.input("Press Enter to continue...")
+            self.state.notification = (
+                "[yellow]No bookmark found for this book![/yellow]"
+            )
 
     def _handle_next_page(self, pages) -> None:
         """Handle next page navigation.

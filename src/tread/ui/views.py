@@ -163,21 +163,37 @@ def display_reading_page(
 
     chapter = state.get_current_chapter()
     overall_progress = progress_info["overall_progress"]
-    total_chapters = progress_info["total_chapters"]
 
-    # Add bookmark indicator
-    bookmark_indicator = " 📖" if state.has_bookmark() else ""
-
-    title = (
-        f"[{overall_progress}%] Ch.{state.current_chapter + 1}/{total_chapters}: "
-        f"{chapter['title']} | Page {current_page + 1}/{total_pages}{bookmark_indicator}"
+    # Book name and progress (upper left)
+    book_name = (
+        epub_book.metadata["title"]
+        if hasattr(epub_book, "metadata") and "title" in epub_book.metadata
+        else "Book"
     )
+    book_info = f"{book_name} [{overall_progress}%]"
+
+    chapter_name = chapter["title"] if chapter and "title" in chapter else "Chapter"
+    chapter_info = f"{chapter_name} ({current_page + 1}/{total_pages})"
+
+    upper_bar = f"{book_info} | {chapter_info}"
+
+    # Display notification if present in state
+    notification = getattr(state, "notification", None)
+    if notification:
+        subtitle = notification
+        subtitle_align = "center"
+    else:
+        subtitle = ""
+        subtitle_align = "center"
 
     console.clear()
     console.print(
         Panel(
             "\n".join(page_content),
-            title=title,
+            title=upper_bar,
+            title_align="center",
+            subtitle=subtitle,
+            subtitle_align=subtitle_align,
             padding=(
                 DisplayCalculator.PANEL_PADDING_Y,
                 DisplayCalculator.PANEL_PADDING_X,
@@ -185,3 +201,7 @@ def display_reading_page(
             width=panel_width + 2 if panel_width > 0 else None,
         )
     )
+
+    # Clear notification after displaying it once
+    if notification:
+        state.notification = None
